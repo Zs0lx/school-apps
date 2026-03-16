@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FlashCards</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17;
+    --surface: #1a1829;
+    --card-front: #ff6b35;
+    --card-back: #3a86ff;
+    --text: #fffffe;
+    --muted: #a7a9be;
+    --accent: #f7c59f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* Background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(255,107,53,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(58,134,255,0.12) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 20px;
+    gap: 24px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+
+  .counter {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  /* Input section */
+  .input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  textarea {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    padding: 14px 16px;
+    resize: none;
+    height: 52px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.4;
+  }
+  textarea:focus {
+    border-color: rgba(255,107,53,0.5);
+  }
+  textarea::placeholder { color: var(--muted); }
+
+  .btn-generate {
+    background: var(--card-front);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 18px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s, opacity 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .btn-generate:active { transform: scale(0.95); opacity: 0.9; }
+
+  /* Progress bar */
+  .progress-wrap {
+    height: 3px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--card-front), var(--card-back));
+    border-radius: 99px;
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* Card area */
+  .card-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
+  }
+
+  .card-scene {
+    width: 100%;
+    max-width: 380px;
+    aspect-ratio: 3/2;
+    position: relative;
+  }
+
+  .card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    user-select: none;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    gap: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .card-front-face {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7941d 100%);
+  }
+
+  .card-back-face {
+    background: linear-gradient(135deg, #3a86ff 0%, #5e60ce 100%);
+    transform: rotateY(180deg);
+  }
+
+  .card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    opacity: 0.7;
+    font-weight: 500;
+  }
+
+  .card-text {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(28px, 8vw, 48px);
+    text-align: center;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .tap-hint {
+    font-size: 11px;
+    opacity: 0.5;
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    width: 100%;
+    max-width: 380px;
+    aspect-ratio: 3/2;
+    border-radius: 24px;
+    border: 2px dashed rgba(255,255,255,0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+  }
+  .empty-state .empty-icon { font-size: 40px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  /* Navigation */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding-bottom: 16px;
+  }
+
+  .nav-btn {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 50px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 14px 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.08); }
+  .nav-btn:active { transform: scale(0.95); }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; transform: none; }
+
+  .nav-btn .arrow { font-size: 18px; }
+
+  /* Dot indicators */
+  .dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 0 20px;
+  }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: all 0.3s;
+  }
+  .dot.active {
+    background: var(--card-front);
+    transform: scale(1.4);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">FlashCards</div>
+    <div class="counter" id="counter">—</div>
+  </header>
+
+  <div class="input-section">
+    <label>Kártyák szövege</label>
+    <div class="input-row">
+      <textarea id="inputText" placeholder="kutya-dog macska-cat auto-car" rows="1"></textarea>
+      <button class="btn-generate" id="generateBtn">Generál</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar" id="progressBar" style="width:0%"></div>
+  </div>
+
+  <div class="card-area" id="cardArea">
+    <div class="empty-state">
+      <div class="empty-icon">🃏</div>
+      <p>Írd be a szöveget és kattints a Generál gombra</p>
+    </div>
+  </div>
+
+  <div class="dots" id="dots"></div>
+
+  <nav class="nav">
+    <button class="nav-btn" id="prevBtn" disabled>
+      <span class="arrow">←</span> Vissza
+    </button>
+    <button class="nav-btn" id="nextBtn" disabled>
+      Következő <span class="arrow">→</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+  var cards = [];
+  var current = 0;
+  var flipped = false;
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function generate() {
+    var raw = document.getElementById('inputText').value.trim();
+    if (!raw) { alert('Kérlek írj be szöveget!'); return; }
+
+    var tokens = raw.split(/\s+/);
+    var newCards = [];
+
+    for (var i = 0; i < tokens.length; i++) {
+      var token = tokens[i];
+      var idx = token.indexOf('-');
+      if (idx > 0 && idx < token.length - 1) {
+        newCards.push({
+          front: token.slice(0, idx),
+          back: token.slice(idx + 1)
+        });
+      }
+    }
+
+    if (newCards.length === 0) {
+      alert('Nem találtam kártyákat! Formátum: szó1-fordítás1 szó2-fordítás2');
+      return;
+    }
+
+    cards = newCards;
+    current = 0;
+    flipped = false;
+    renderCard();
+    renderDots();
+    updateUI();
+  }
+
+  function renderCard() {
+    var area = document.getElementById('cardArea');
+    var card = cards[current];
+    var html = '<div class="card-scene">' +
+      '<div class="card' + (flipped ? ' flipped' : '') + '" id="card">' +
+        '<div class="card-face card-front-face">' +
+          '<div class="card-label">Elülső</div>' +
+          '<div class="card-text">' + escHtml(card.front) + '</div>' +
+          '<div class="tap-hint">koppints a megfordításhoz</div>' +
+        '</div>' +
+        '<div class="card-face card-back-face">' +
+          '<div class="card-label">Hátlap</div>' +
+          '<div class="card-text">' + escHtml(card.back) + '</div>' +
+          '<div class="tap-hint">koppints a megfordításhoz</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+    area.innerHTML = html;
+    document.getElementById('card').addEventListener('click', flipCard);
+  }
+
+  function flipCard() {
+    flipped = !flipped;
+    var card = document.getElementById('card');
+    if (flipped) {
+      card.classList.add('flipped');
+    } else {
+      card.classList.remove('flipped');
+    }
+  }
+
+  function next() {
+    if (current < cards.length - 1) {
+      current++;
+      flipped = false;
+      renderCard();
+      renderDots();
+      updateUI();
+    }
+  }
+
+  function prev() {
+    if (current > 0) {
+      current--;
+      flipped = false;
+      renderCard();
+      renderDots();
+      updateUI();
+    }
+  }
+
+  function renderDots() {
+    var dotsEl = document.getElementById('dots');
+    if (cards.length <= 1) { dotsEl.innerHTML = ''; return; }
+    var max = Math.min(cards.length, 20);
+    var html = '';
+    for (var i = 0; i < max; i++) {
+      html += '<div class="dot' + (i === current ? ' active' : '') + '"></div>';
+    }
+    dotsEl.innerHTML = html;
+  }
+
+  function updateUI() {
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + cards.length;
+    document.getElementById('prevBtn').disabled = (current === 0);
+    document.getElementById('nextBtn').disabled = (current === cards.length - 1);
+    var pct = cards.length > 1 ? (current / (cards.length - 1)) * 100 : 100;
+    document.getElementById('progressBar').style.width = pct + '%';
+  }
+
+  // Bind buttons
+  document.getElementById('generateBtn').addEventListener('click', generate);
+  document.getElementById('prevBtn').addEventListener('click', prev);
+  document.getElementById('nextBtn').addEventListener('click', next);
+
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight') next();
+    else if (e.key === 'ArrowLeft') prev();
+  });
+
+  // Auto-generate on load
+  document.getElementById('inputText').value = 'kutya-dog macska-cat auto-car fa-tree ház-house';
+  generate();
+</script>
+</body>
+</html>
