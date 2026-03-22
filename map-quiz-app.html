@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Európa Térkép Kvíz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1208;
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --parchment-deep: #d4b896;
+    --gold: #b8860b;
+    --gold-light: #daa520;
+    --crimson: #8b1a1a;
+    --forest: #2d5a27;
+    --forest-light: #4a7c42;
+    --ocean: #2c5f7a;
+    --shadow: rgba(26,18,8,0.25);
+    --border: #8b6914;
+  }
+
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background-color: var(--ink);
+    color: var(--ink);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, #2a1f0a 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, #0a1a2a 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  #root { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--parchment-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+
+  /* ── Typography ── */
+  .font-display { font-family: 'Cinzel', serif; }
+  .font-body { font-family: 'Crimson Pro', Georgia, serif; }
+
+  /* ── Parchment card ── */
+  .parchment {
+    background: var(--parchment);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    border: 2px solid var(--border);
+    box-shadow: 0 4px 24px var(--shadow), inset 0 0 60px rgba(139,105,20,0.06);
+  }
+
+  /* ── Ornamental button ── */
+  .btn-primary {
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: var(--parchment);
+    background: linear-gradient(135deg, #5a3a0a 0%, #8b6014 50%, #5a3a0a 100%);
+    border: 1px solid var(--gold);
+    padding: 0.65rem 1.6rem;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #7a5010 0%, #c0922a 50%, #7a5010 100%);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+  .btn-secondary {
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    background: var(--parchment-dark);
+    border: 1px solid var(--border);
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.18s;
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+  .btn-secondary:hover { background: var(--parchment-deep); box-shadow: 0 2px 8px var(--shadow); }
+
+  /* ── Map container ── */
+  .map-wrapper {
+    position: relative;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    box-shadow: 0 6px 32px rgba(0,0,0,0.6);
+    background: #b8cfd8;
+  }
+  .map-wrapper img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    user-select: none;
+    pointer-events: none;
+    filter: sepia(30%) contrast(0.92) brightness(1.05);
+  }
+
+  /* ── Map point ── */
+  .map-point {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 18px; height: 18px;
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.15s;
+  }
+  .map-point:hover { transform: translate(-50%,-50%) scale(1.35); }
+
+  .point-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 2px solid;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    transition: all 0.2s;
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  }
+
+  .point-default .point-dot { background: rgba(44,95,122,0.85); border-color: #1a3d54; }
+  .point-correct .point-dot { background: var(--forest-light); border-color: var(--forest); box-shadow: 0 0 8px rgba(45,90,39,0.7); }
+  .point-incorrect .point-dot { background: var(--crimson); border-color: #5a0e0e; box-shadow: 0 0 8px rgba(139,26,26,0.7); animation: shake 0.35s; }
+  .point-selected .point-dot { background: var(--gold-light); border-color: var(--gold); box-shadow: 0 0 10px rgba(218,165,32,0.8); }
+
+  @keyframes shake {
+    0%,100%{transform:translate(-50%,-50%) translateX(0)}
+    25%{transform:translate(-50%,-50%) translateX(-4px)}
+    75%{transform:translate(-50%,-50%) translateX(4px)}
+  }
+
+  /* ── Name tag on map ── */
+  .name-tag {
+    position: absolute;
+    transform: translate(-50%, -130%);
+    background: rgba(245,234,214,0.95);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.58rem;
+    color: var(--ink);
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    z-index: 11;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Name list items ── */
+  .name-item {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.95rem;
+    padding: 0.3rem 0.7rem;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+    border-radius: 0 3px 3px 0;
+  }
+  .name-item-pending { border-left-color: var(--gold); color: var(--ink); background: rgba(184,134,11,0.07); }
+  .name-item-correct { border-left-color: var(--forest); color: var(--forest); background: rgba(45,90,39,0.08); text-decoration: line-through; opacity: 0.7; }
+
+  /* ── Popup input ── */
+  .popup-input {
+    position: absolute;
+    z-index: 50;
+    background: var(--parchment);
+    border: 2px solid var(--border);
+    padding: 0.7rem 0.8rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    min-width: 200px;
+    transform: translate(-50%, -120%);
+  }
+  .popup-input input {
+    width: 100%;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.7);
+    padding: 0.3rem 0.5rem;
+    color: var(--ink);
+    outline: none;
+  }
+  .popup-input input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(184,134,11,0.2); }
+  .popup-input input.input-error { border-color: var(--crimson); background: rgba(139,26,26,0.06); animation: shake 0.35s; }
+
+  /* ── Progress bar ── */
+  .progress-bar-bg { background: var(--parchment-deep); height: 6px; border-radius: 3px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--forest-light)); border-radius: 3px; transition: width 0.4s ease; }
+
+  /* ── Category chips ── */
+  .chip {
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.18s;
+    user-select: none;
+  }
+  .chip-off { background: var(--parchment-dark); color: var(--ink); }
+  .chip-on  { background: linear-gradient(135deg,#5a3a0a,#8b6014); color: var(--parchment); border-color: var(--gold-light); }
+
+  /* ── Divider ornament ── */
+  .ornament {
+    display: flex; align-items: center; gap: 0.6rem;
+    color: var(--gold);
+    font-size: 1.1rem;
+  }
+  .ornament-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+
+  /* ── Completion ── */
+  .completion-banner {
+    background: linear-gradient(135deg, var(--forest) 0%, #1e3d1a 100%);
+    border: 2px solid var(--gold);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  /* ── Scroll area ── */
+  .scroll-area { overflow-y: auto; max-height: 100%; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .quiz-layout { flex-direction: column !important; }
+    .sidebar { max-height: 30vh; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const RAW_DATA = {"map":"europe","exported":"2026-03-22T14:34:41.931Z","points":[{"id":1,"name":"Azovi-tenger","category":"tengerek","x_pct":74.677,"y_pct":67.574},{"id":2,"name":"Fekete-tenger","category":"tengerek","x_pct":73.599,"y_pct":76.758},{"id":3,"name":"Márvány-tenger","category":"tengerek","x_pct":63.47,"y_pct":84.708},{"id":4,"name":"Boszporusz","category":"tengerek","x_pct":64.547,"y_pct":83.2},{"id":5,"name":"Égei-tenger","category":"tengerek","x_pct":58.405,"y_pct":90.053},{"id":6,"name":"Jón-tenger","category":"tengerek","x_pct":49.353,"y_pct":94.165},{"id":7,"name":"Messinai-szoros","category":"tengerek","x_pct":42.672,"y_pct":92.247},{"id":8,"name":"Adriai-tenger","category":"tengerek","x_pct":40.841,"y_pct":75.935},{"id":9,"name":"Otrantói-szoros","category":"tengerek","x_pct":48.168,"y_pct":86.901},{"id":10,"name":"Földközi-tenger","category":"tengerek","x_pct":34.267,"y_pct":90.053},{"id":11,"name":"Gibraltári-szoros","category":"tengerek","x_pct":6.573,"y_pct":88.546},{"id":12,"name":"Atlanti-óceán","category":"tengerek","x_pct":7.759,"y_pct":55.787},{"id":13,"name":"Dán-szoros","category":"tengerek","x_pct":12.716,"y_pct":7.813},{"id":14,"name":"Grönlandi-tenger","category":"tengerek","x_pct":26.724,"y_pct":7.265},{"id":15,"name":"Norvég-tenger","category":"tengerek","x_pct":30.927,"y_pct":16.311},{"id":16,"name":"Északi-Jeges-tenger","category":"tengerek","x_pct":49.353,"y_pct":6.579},{"id":17,"name":"Botteni-öböl","category":"tengerek","x_pct":49.569,"y_pct":30.018},{"id":18,"name":"Északi-tenger","category":"tengerek","x_pct":31.681,"y_pct":44.273},{"id":19,"name":"Vizcayai-öböl","category":"tengerek","x_pct":14.547,"y_pct":69.767},{"id":20,"name":"Valenciai-öböl","category":"tengerek","x_pct":20.259,"y_pct":81.007},{"id":21,"name":"Oroszlán-öböl","category":"tengerek","x_pct":25.431,"y_pct":76.21},{"id":22,"name":"Tirrén-tenger","category":"tengerek","x_pct":39.224,"y_pct":86.216},{"id":23,"name":"Ligur-tenger","category":"tengerek","x_pct":32.112,"y_pct":76.621},{"id":24,"name":"Balti-tenger","category":"tengerek","x_pct":49.138,"y_pct":46.192},{"id":25,"name":"Finn-öböl","category":"tengerek","x_pct":57.112,"y_pct":36.049},{"id":26,"name":"Rigai-öböl","category":"tengerek","x_pct":54.418,"y_pct":42.765},{"id":27,"name":"Skagerrak","category":"tengerek","x_pct":38.039,"y_pct":41.257},{"id":28,"name":"Kelta-tenger","category":"tengerek","x_pct":16.595,"y_pct":51.263},{"id":29,"name":"Ír-tenger","category":"tengerek","x_pct":19.828,"y_pct":46.603},{"id":30,"name":"Bristoli-csatorna","category":"tengerek","x_pct":21.659,"y_pct":52.086},{"id":31,"name":"Kattegat","category":"tengerek","x_pct":41.056,"y_pct":43.725},{"id":32,"name":"Doveri-szoros","category":"tengerek","x_pct":26.616,"y_pct":55.649},{"id":33,"name":"La Manche-csatorna","category":"tengerek","x_pct":18.211,"y_pct":56.335},{"id":34,"name":"Trák-tenger","category":"tengerek","x_pct":57.866,"y_pct":86.353},{"id":35,"name":"Fehér-tenger","category":"tengerek","x_pct":65.625,"y_pct":19.189},{"id":36,"name":"Barents-tenger","category":"tengerek","x_pct":66.918,"y_pct":10.006},{"id":37,"name":"Szajna-öböl","category":"tengerek","x_pct":23.276,"y_pct":57.843},{"id":38,"name":"Genovai-öböl","category":"tengerek","x_pct":34.052,"y_pct":75.25},{"id":39,"name":"Tarantói-öböl","category":"tengerek","x_pct":45.797,"y_pct":87.175},{"id":40,"name":"Dardanellák","category":"tengerek","x_pct":59.591,"y_pct":87.86},{"id":41,"name":"Bonifaciói-szoros","category":"tengerek","x_pct":33.297,"y_pct":82.515},{"id":42,"name":"Szaloniki-öböl","category":"tengerek","x_pct":55.065,"y_pct":87.449},{"id":43,"name":"Izland","category":"szigetek","x_pct":18.642,"y_pct":12.473},{"id":44,"name":"Grönland","category":"szigetek","x_pct":4.31,"y_pct":7.402},{"id":45,"name":"Svalbard","category":"szigetek","x_pct":52.047,"y_pct":3.701},{"id":46,"name":"Sjælland","category":"szigetek","x_pct":40.841,"y_pct":47.288},{"id":47,"name":"Fyn","category":"szigetek","x_pct":39.009,"y_pct":47.562},{"id":48,"name":"Lolland","category":"szigetek","x_pct":39.763,"y_pct":49.344},{"id":49,"name":"Bornholm","category":"szigetek","x_pct":44.289,"y_pct":48.796},{"id":50,"name":"Gotland","category":"szigetek","x_pct":48.491,"y_pct":43.45},{"id":51,"name":"Brit-szigetek","category":"szigetek","x_pct":23.922,"y_pct":51.812},{"id":52,"name":"Man-sziget","category":"szigetek","x_pct":21.228,"y_pct":44.958},{"id":53,"name":"Ír-sziget","category":"szigetek","x_pct":17.241,"y_pct":46.055},{"id":54,"name":"Hebridák","category":"szigetek","x_pct":20.905,"y_pct":36.323},{"id":55,"name":"Shetland-szigetek","category":"szigetek","x_pct":28.556,"y_pct":32.348},{"id":56,"name":"Orkney-szigetek","category":"szigetek","x_pct":26.616,"y_pct":35.638},{"id":57,"name":"Feröer-szigetek","category":"szigetek","x_pct":24.246,"y_pct":27.002},{"id":58,"name":"Dalmát-szigetek","category":"szigetek","x_pct":43.211,"y_pct":78.54},{"id":59,"name":"Szicília","category":"szigetek","x_pct":39.009,"y_pct":92.658},{"id":60,"name":"Gozo","category":"szigetek","x_pct":40.841,"y_pct":96.084},{"id":61,"name":"Valletta","category":"szigetek","x_pct":42.349,"y_pct":96.359},{"id":62,"name":"Málta","category":"szigetek","x_pct":41.487,"y_pct":98.14},{"id":63,"name":"Kréta","category":"szigetek","x_pct":56.358,"y_pct":97.318},{"id":64,"name":"Jón-szigetek","category":"szigetek","x_pct":50.431,"y_pct":91.972},{"id":65,"name":"Kükládok","category":"szigetek","x_pct":59.375,"y_pct":94.851},{"id":66,"name":"Északi-Szporadok","category":"szigetek","x_pct":56.466,"y_pct":88.957},{"id":67,"name":"Déli-Szporadok","category":"szigetek","x_pct":60.776,"y_pct":92.247},{"id":68,"name":"Szardínia","category":"szigetek","x_pct":32.435,"y_pct":85.667},{"id":69,"name":"Korzika","category":"szigetek","x_pct":33.405,"y_pct":80.048},{"id":70,"name":"Baleár-szigetek","category":"szigetek","x_pct":20.474,"y_pct":83.337},{"id":71,"name":"Ibiza","category":"szigetek","x_pct":19.828,"y_pct":85.393},{"id":72,"name":"Mallorca","category":"szigetek","x_pct":22.414,"y_pct":84.708},{"id":73,"name":"Madeira-szigetek","category":"szigetek","x_pct":0.862,"y_pct":84.434},{"id":74,"name":"Kanári-szigetek","category":"szigetek","x_pct":0.539,"y_pct":89.505},{"id":75,"name":"Lipari-szigetek","category":"szigetek","x_pct":41.703,"y_pct":89.231},{"id":76,"name":"Évia","category":"szigetek","x_pct":56.25,"y_pct":90.876},{"id":77,"name":"Öland","category":"szigetek","x_pct":46.121,"y_pct":45.781},{"id":78,"name":"Kanyini-félsziget","category":"felszigetek","x_pct":69.073,"y_pct":11.651},{"id":79,"name":"Kola-félsziget","category":"felszigetek","x_pct":64.332,"y_pct":14.803},{"id":80,"name":"Skandináv-félsziget","category":"felszigetek","x_pct":44.289,"y_pct":27.551},{"id":81,"name":"Krími-félsziget","category":"felszigetek","x_pct":72.629,"y_pct":69.356},{"id":82,"name":"Balkán-félsziget","category":"felszigetek","x_pct":51.401,"y_pct":86.078},{"id":83,"name":"Peloponnészosz","category":"felszigetek","x_pct":53.448,"y_pct":93.617},{"id":84,"name":"Pelješac-félsziget","category":"felszigetek","x_pct":45.259,"y_pct":78.951},{"id":85,"name":"Isztria-félsziget","category":"felszigetek","x_pct":41.379,"y_pct":74.154},{"id":86,"name":"Normandia","category":"felszigetek","x_pct":21.983,"y_pct":57.98},{"id":87,"name":"Bretagne","category":"felszigetek","x_pct":17.134,"y_pct":59.762},{"id":88,"name":"Jütland","category":"felszigetek","x_pct":37.392,"y_pct":45.232},{"id":89,"name":"Appennini-félsziget","category":"felszigetek","x_pct":37.5,"y_pct":80.596},{"id":90,"name":"Calabria","category":"felszigetek","x_pct":43.858,"y_pct":90.328},{"id":91,"name":"Pireneusi-félsziget","category":"felszigetek","x_pct":9.698,"y_pct":74.976},{"id":92,"name":"Urál-hegység","category":"hatar","x_pct":85.022,"y_pct":15.763},{"id":93,"name":"Emba folyó","category":"hatar","x_pct":97.306,"y_pct":52.086},{"id":94,"name":"Kaszpi-tenger","category":"hatar","x_pct":96.983,"y_pct":72.783},{"id":95,"name":"Kuma–Manics-alföld","category":"hatar","x_pct":82.651,"y_pct":68.671},{"id":96,"name":"Azovi-tenger","category":"hatar","x_pct":73.815,"y_pct":69.493},{"id":97,"name":"Kercsi-szoros","category":"hatar","x_pct":73.168,"y_pct":70.727},{"id":98,"name":"Fekete-tenger","category":"hatar","x_pct":74.246,"y_pct":76.21},{"id":99,"name":"Boszporusz","category":"hatar","x_pct":65.194,"y_pct":83.063},{"id":100,"name":"Márvány-tenger","category":"hatar","x_pct":62.823,"y_pct":85.119},{"id":101,"name":"Dardanellák","category":"hatar","x_pct":59.483,"y_pct":87.449},{"id":102,"name":"Égei-tenger","category":"hatar","x_pct":58.513,"y_pct":90.465},{"id":103,"name":"Földközi-tenger","category":"hatar","x_pct":35.991,"y_pct":89.779},{"id":104,"name":"Urál","category":"vizrajz","x_pct":92.349,"y_pct":50.441},{"id":105,"name":"Kaszpi-tenger","category":"vizrajz","x_pct":92.996,"y_pct":66.889},{"id":106,"name":"Volga","category":"vizrajz","x_pct":87.177,"y_pct":59.624},{"id":107,"name":"Don","category":"vizrajz","x_pct":78.233,"y_pct":62.914},{"id":108,"name":"Dnyeper","category":"vizrajz","x_pct":71.121,"y_pct":63.874},{"id":109,"name":"Pecsora","category":"vizrajz","x_pct":75.431,"y_pct":8.361},{"id":110,"name":"Északi-Dvina","category":"vizrajz","x_pct":68.75,"y_pct":21.931},{"id":111,"name":"Onyega-tó","category":"vizrajz","x_pct":65.733,"y_pct":30.703},{"id":112,"name":"Ladoga-tó","category":"vizrajz","x_pct":62.284,"y_pct":33.993},{"id":113,"name":"Inari","category":"vizrajz","x_pct":56.25,"y_pct":16.037},{"id":114,"name":"Prut","category":"vizrajz","x_pct":60.776,"y_pct":70.453},{"id":115,"name":"Dnyeszter","category":"vizrajz","x_pct":60.56,"y_pct":65.244},{"id":116,"name":"Déli-Bug","category":"vizrajz","x_pct":65.409,"y_pct":64.97},{"id":117,"name":"Duna","category":"vizrajz","x_pct":58.405,"y_pct":77.306},{"id":118,"name":"Tisza","category":"vizrajz","x_pct":51.616,"y_pct":71.275},{"id":119,"name":"Balaton","category":"vizrajz","x_pct":46.659,"y_pct":67.163},{"id":120,"name":"Csud-tó","category":"vizrajz","x_pct":58.405,"y_pct":39.338},{"id":121,"name":"Visztula","category":"vizrajz","x_pct":49.03,"y_pct":54.69},{"id":122,"name":"Loch Ness","category":"vizrajz","x_pct":24.03,"y_pct":37.145},{"id":123,"name":"Temze","category":"vizrajz","x_pct":24.138,"y_pct":53.319},{"id":124,"name":"Shannon","category":"vizrajz","x_pct":16.81,"y_pct":44.41},{"id":125,"name":"Neagh-tó","category":"vizrajz","x_pct":20.043,"y_pct":43.176},{"id":126,"name":"Loire","category":"vizrajz","x_pct":21.983,"y_pct":63.188},{"id":127,"name":"Genfi-tó","category":"vizrajz","x_pct":30.819,"y_pct":70.316},{"id":128,"name":"Rhône","category":"vizrajz","x_pct":27.802,"y_pct":72.92},{"id":129,"name":"Pó","category":"vizrajz","x_pct":38.039,"y_pct":73.605},{"id":130,"name":"Lago Maggiore","category":"vizrajz","x_pct":35.56,"y_pct":69.905},{"id":131,"name":"Elba","category":"vizrajz","x_pct":38.901,"y_pct":52.497},{"id":132,"name":"Rajna","category":"vizrajz","x_pct":33.082,"y_pct":55.512},{"id":133,"name":"Szajna","category":"vizrajz","x_pct":27.047,"y_pct":61.269},{"id":134,"name":"Tajo","category":"vizrajz","x_pct":8.621,"y_pct":79.088},{"id":135,"name":"Duero","category":"vizrajz","x_pct":8.405,"y_pct":74.017},{"id":136,"name":"Garonne","category":"vizrajz","x_pct":21.444,"y_pct":71.412},{"id":137,"name":"Tevere","category":"vizrajz","x_pct":38.254,"y_pct":80.733},{"id":138,"name":"Vänern","category":"vizrajz","x_pct":43.319,"y_pct":37.831},{"id":139,"name":"Vättern","category":"vizrajz","x_pct":44.289,"y_pct":41.257},{"id":140,"name":"Mälaren","category":"vizrajz","x_pct":46.444,"y_pct":39.75},{"id":141,"name":"Ebro","category":"vizrajz","x_pct":18.211,"y_pct":78.266},{"id":142,"name":"Kaszpi-mélyföld","category":"domborzat","x_pct":91.487,"y_pct":58.665},{"id":143,"name":"Urál-hegység","category":"domborzat","x_pct":86.961,"y_pct":18.504},{"id":144,"name":"Kelet-európai-síkság","category":"domborzat","x_pct":72.953,"y_pct":50.715},{"id":145,"name":"Lengyel-alföld","category":"domborzat","x_pct":48.815,"y_pct":53.731},{"id":146,"name":"Skandináv-hegység","category":"domborzat","x_pct":45.043,"y_pct":24.124},{"id":147,"name":"Román-alföld","category":"domborzat","x_pct":60.776,"y_pct":75.798},{"id":148,"name":"Balkán-hegység","category":"domborzat","x_pct":56.897,"y_pct":79.636},{"id":149,"name":"Rodope","category":"domborzat","x_pct":57.004,"y_pct":82.926},{"id":150,"name":"Dinári-hegység","category":"domborzat","x_pct":46.767,"y_pct":76.758},{"id":151,"name":"Appenninek","category":"domborzat","x_pct":40.302,"y_pct":81.144},{"id":152,"name":"Pó-síkság","category":"domborzat","x_pct":36.207,"y_pct":72.646},{"id":153,"name":"Alpok","category":"domborzat","x_pct":35.345,"y_pct":68.397},{"id":154,"name":"Kárpátok","category":"domborzat","x_pct":55.388,"y_pct":66.204},{"id":155,"name":"Alföld","category":"domborzat","x_pct":51.078,"y_pct":70.042},{"id":156,"name":"Dnyeper-síkság","category":"domborzat","x_pct":67.565,"y_pct":60.036},{"id":157,"name":"Ír-alföld","category":"domborzat","x_pct":16.379,"y_pct":46.192},{"id":158,"name":"Pireneusok","category":"domborzat","x_pct":20.366,"y_pct":74.565},{"id":159,"name":"Cseh-erdő","category":"domborzat","x_pct":41.703,"y_pct":63.188},{"id":160,"name":"Érchegység","category":"domborzat","x_pct":39.547,"y_pct":57.294},{"id":161,"name":"Német-középhegység","category":"domborzat","x_pct":36.315,"y_pct":59.213},{"id":162,"name":"Sierra Nevada","category":"domborzat","x_pct":11.746,"y_pct":87.175},{"id":163,"name":"Kantábriai-hegység","category":"domborzat","x_pct":10.776,"y_pct":71.823},{"id":164,"name":"Pindosz-hegység","category":"domborzat","x_pct":51.509,"y_pct":86.216},{"id":165,"name":"Germán-alföld","category":"domborzat","x_pct":36.961,"y_pct":55.512},{"id":166,"name":"Holland-mélyföld","category":"domborzat","x_pct":31.142,"y_pct":53.593},{"id":167,"name":"Francia-középhegység","category":"domborzat","x_pct":24.246,"y_pct":68.123},{"id":168,"name":"Nyugati-alföld","category":"domborzat","x_pct":22.629,"y_pct":65.655},{"id":169,"name":"Kaukázus","category":"domborzat","x_pct":89.763,"y_pct":76.21},{"id":170,"name":"Kis-Kaukázus","category":"domborzat","x_pct":90.625,"y_pct":79.225},{"id":171,"name":"Grampian-hegység","category":"domborzat","x_pct":22.737,"y_pct":39.338},{"id":172,"name":"Pennine-hegység","category":"domborzat","x_pct":24.569,"y_pct":47.151},{"id":173,"name":"Szudéták","category":"domborzat","x_pct":44.72,"y_pct":59.899}]};
+
+const CATEGORY_LABELS = {
+  tengerek: 'Tengerek & Szorosok',
+  szigetek: 'Szigetek',
+  felszigetek: 'Félszigetek',
+  hatar: 'Határvonalak',
+  vizrajz: 'Vízrajz',
+  domborzat: 'Domborzat',
+};
+
+const ALL_CATEGORIES = [...new Set(RAW_DATA.points.map(p => p.category))];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function normalizeStr(s) {
+  return s.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-–]/g, '-');
+}
+
+// ─── MAP IMAGE (embedded from uploads) ────────────────────────────────────────
+// We'll use a reference to the file path directly. The image must be served
+// alongside the HTML. Users should place europe.png in same directory.
+const MAP_SRC = 'europe.png';
+
+// ─── POINT COMPONENT ─────────────────────────────────────────────────────────
+function Point({ point, state, onClick, label, showLabel }) {
+  const stateClass = `point-${state}`;
+  return (
+    <div
+      className={`map-point ${stateClass}`}
+      style={{ left: `${point.x_pct}%`, top: `${point.y_pct}%` }}
+      onClick={() => onClick && onClick(point)}
+      title={showLabel ? point.name : undefined}
+    >
+      <div className="point-dot" />
+      {showLabel && label && (
+        <div className="name-tag">{label}</div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAP CANVAS ──────────────────────────────────────────────────────────────
+function MapCanvas({ allPoints, quizPoints, pointStates, onPointClick, showAllLabels, popup }) {
+  const wrapRef = useRef(null);
+
+  return (
+    <div className="map-wrapper" ref={wrapRef} style={{ width: '100%', paddingBottom: '73%', position: 'relative' }}>
+      <img
+        src={MAP_SRC}
+        alt="Európa térkép"
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+        draggable={false}
+      />
+
+      {/* Render background points */}
+      {allPoints.map(pt => {
+        const state = pointStates[pt.id] || 'default';
+        const isQuizPoint = quizPoints.some(q => q.id === pt.id);
+        return (
+          <Point
+            key={pt.id}
+            point={pt}
+            state={state}
+            onClick={isQuizPoint ? onPointClick : null}
+            showLabel={showAllLabels && !isQuizPoint}
+            label={pt.name}
+          />
+        );
+      })}
+
+      {/* Render quiz points on top */}
+      {quizPoints.map(pt => {
+        const state = pointStates[pt.id] || 'default';
+        return (
+          <Point
+            key={`quiz-${pt.id}`}
+            point={pt}
+            state={state}
+            onClick={onPointClick}
+            showLabel={showAllLabels || state === 'correct'}
+            label={pt.name}
+          />
+        );
+      })}
+
+      {/* Popup */}
+      {popup && (
+        <div
+          className="popup-input"
+          style={{ left: `${popup.x_pct}%`, top: `${popup.y_pct}%` }}
+        >
+          {popup.content}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN MENU ────────────────────────────────────────────────────────────────
+function MainMenu({ onSelectMode }) {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      background: 'linear-gradient(160deg, #1a1208 0%, #0d1a24 100%)'
+    }}>
+      <div className="parchment" style={{ maxWidth: 520, width: '100%', padding: '3rem 2.5rem', textAlign: 'center' }}>
+        {/* Ornament top */}
+        <div style={{ fontSize: '1.8rem', color: 'var(--gold)', marginBottom: '0.5rem', letterSpacing: '0.3em' }}>✦ ✦ ✦</div>
+        <h1 className="font-display" style={{ fontSize: '2rem', color: 'var(--ink)', letterSpacing: '0.12em', lineHeight: 1.2, marginBottom: '0.3rem' }}>
+          EURÓPA
+        </h1>
+        <h2 className="font-display" style={{ fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.25em', marginBottom: '0.3rem' }}>
+          TÉRKÉP KVÍZ
+        </h2>
+        <div className="ornament" style={{ margin: '1.2rem 0' }}>
+          <div className="ornament-line" />
+          <span style={{ fontSize: '0.75rem', fontFamily: 'Cinzel, serif', letterSpacing: '0.15em', color: 'var(--gold)' }}>VÁLASSZ MÓDOT</span>
+          <div className="ornament-line" />
+        </div>
+        <p className="font-body" style={{ color: '#6b5030', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: 1.5 }}>
+          Teszteld európai földrajzi ismereteidet! Jelöld meg a helyet, vagy nevezd meg a pontot a térképen.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <button className="btn-primary" style={{ fontSize: '1rem', padding: '0.9rem 2rem' }} onClick={() => onSelectMode('name-to-loc')}>
+            📍 Név → Helyszín
+          </button>
+          <button className="btn-primary" style={{ fontSize: '1rem', padding: '0.9rem 2rem' }} onClick={() => onSelectMode('loc-to-name')}>
+            🏷️ Helyszín → Név
+          </button>
+        </div>
+        <div style={{ marginTop: '2rem', fontSize: '0.78rem', color: '#8b7048', fontFamily: 'Crimson Pro, serif', fontStyle: 'italic' }}>
+          173 pont · 6 kategória
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CATEGORY SELECTOR ───────────────────────────────────────────────────────
+function CategorySelector({ mode, onStart, onBack }) {
+  const [catMode, setCatMode] = useState('all'); // 'all' | 'select'
+  const [selected, setSelected] = useState(new Set(ALL_CATEGORIES));
+  const [count, setCount] = useState(15);
+
+  const toggleCat = (cat) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) { if (next.size > 1) next.delete(cat); }
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const availablePoints = RAW_DATA.points.filter(p =>
+    catMode === 'all' ? true : selected.has(p.category)
+  );
+  const maxCount = Math.min(availablePoints.length, 40);
+  const actualCount = Math.min(count, maxCount);
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      background: 'linear-gradient(160deg, #1a1208 0%, #0d1a24 100%)'
+    }}>
+      <div className="parchment" style={{ maxWidth: 560, width: '100%', padding: '2.5rem 2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="btn-secondary" onClick={onBack}>← Vissza</button>
+          <h2 className="font-display" style={{ fontSize: '1.1rem', letterSpacing: '0.1em', color: 'var(--ink)' }}>
+            {mode === 'name-to-loc' ? '📍 Név → Helyszín' : '🏷️ Helyszín → Név'}
+          </h2>
+        </div>
+
+        <div className="ornament" style={{ marginBottom: '1.2rem' }}>
+          <div className="ornament-line" />
+          <span style={{ fontSize: '0.72rem', fontFamily: 'Cinzel,serif', letterSpacing: '0.15em', color: 'var(--gold)' }}>KATEGÓRIÁK</span>
+          <div className="ornament-line" />
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.7rem', marginBottom: '1rem' }}>
+          <span
+            className={`chip ${catMode === 'all' ? 'chip-on' : 'chip-off'}`}
+            onClick={() => setCatMode('all')}
+          >Összes kategória</span>
+          <span
+            className={`chip ${catMode === 'select' ? 'chip-on' : 'chip-off'}`}
+            onClick={() => setCatMode('select')}
+          >Válassz kategóriát</span>
+        </div>
+
+        {catMode === 'select' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.2rem' }}>
+            {ALL_CATEGORIES.map(cat => (
+              <span
+                key={cat}
+                className={`chip ${selected.has(cat) ? 'chip-on' : 'chip-off'}`}
+                onClick={() => toggleCat(cat)}
+              >
+                {CATEGORY_LABELS[cat] || cat}
+                <span style={{ marginLeft: '0.3rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                  ({RAW_DATA.points.filter(p => p.category === cat).length})
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="ornament" style={{ margin: '1.2rem 0' }}>
+          <div className="ornament-line" />
+          <span style={{ fontSize: '0.72rem', fontFamily: 'Cinzel,serif', letterSpacing: '0.15em', color: 'var(--gold)' }}>KÉRDÉSEK SZÁMA</span>
+          <div className="ornament-line" />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+          <input
+            type="range"
+            min={5}
+            max={maxCount}
+            value={actualCount}
+            onChange={e => setCount(Number(e.target.value))}
+            style={{ flex: 1, accentColor: 'var(--gold)' }}
+          />
+          <span className="font-display" style={{ fontSize: '1.4rem', color: 'var(--ink)', minWidth: '3rem', textAlign: 'center' }}>
+            {actualCount}
+          </span>
+          <span className="font-body" style={{ fontSize: '0.85rem', color: '#6b5030' }}>
+            / {maxCount} pont
+          </span>
+        </div>
+
+        <button
+          className="btn-primary"
+          style={{ width: '100%', fontSize: '1rem', padding: '0.9rem' }}
+          onClick={() => onStart({
+            categories: catMode === 'all' ? ALL_CATEGORIES : [...selected],
+            count: actualCount
+          })}
+        >
+          Kvíz indítása ⟶
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── MODE 1: NAME → LOCATION ──────────────────────────────────────────────────
+function QuizNameToLocation({ config, onBack }) {
+  const allPoints = RAW_DATA.points;
+
+  const quizPoints = useMemo(() => {
+    const filtered = allPoints.filter(p => config.categories.includes(p.category));
+    return shuffle(filtered).slice(0, config.count);
+  }, []);
+
+  const [pointStates, setPointStates] = useState({});
+  const [remaining, setRemaining] = useState(() => new Set(quizPoints.map(p => p.id)));
+  const [incorrectCount, setIncorrectCount] = useState(0);
+  const [flashId, setFlashId] = useState(null);
+  const [done, setDone] = useState(false);
+
+  const correctCount = quizPoints.length - remaining.size;
+  const progress = correctCount / quizPoints.length;
+
+  const handlePointClick = useCallback((point) => {
+    if (!remaining.has(point.id)) return;
+
+    // Correct
+    setPointStates(prev => ({ ...prev, [point.id]: 'correct' }));
+    setRemaining(prev => {
+      const next = new Set(prev);
+      next.delete(point.id);
+      if (next.size === 0) setTimeout(() => setDone(true), 600);
+      return next;
+    });
+  }, [remaining]);
+
+  const handleWrongClick = useCallback((point) => {
+    if (remaining.has(point.id)) return; // it's a quiz point but not matched by name
+    // This won't fire - wrong clicks are handled differently
+  }, [remaining]);
+
+  // In mode 1, clicking any point checks if it matches a remaining name
+  // We highlight the clicked point briefly if wrong
+  const handleAnyClick = useCallback((point) => {
+    if (!remaining.has(point.id)) {
+      // flash red for wrong click
+      setFlashId(point.id);
+      setIncorrectCount(c => c + 1);
+      setTimeout(() => setFlashId(null), 500);
+      return;
+    }
+    handlePointClick(point);
+  }, [remaining, handlePointClick]);
+
+  const allPointsWithState = useMemo(() => {
+    const states = { ...pointStates };
+    if (flashId) states[flashId] = 'incorrect';
+    return states;
+  }, [pointStates, flashId]);
+
+  const nameList = useMemo(() => shuffle(quizPoints), [quizPoints]);
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(160deg, #1a1208 0%, #0d1a24 100%)' }}>
+      {/* Top bar */}
+      <div style={{ padding: '0.7rem 1rem', background: 'rgba(26,18,8,0.8)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <button className="btn-secondary" onClick={onBack}>← Menü</button>
+        <span className="font-display" style={{ color: 'var(--gold)', fontSize: '0.85rem', letterSpacing: '0.1em' }}>
+          📍 NÉV → HELYSZÍN
+        </span>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <div className="progress-bar-bg">
+            <div className="progress-bar-fill" style={{ width: `${progress * 100}%` }} />
+          </div>
+        </div>
+        <span className="font-display" style={{ color: 'var(--parchment)', fontSize: '0.9rem' }}>
+          {correctCount}/{quizPoints.length}
+        </span>
+        <span style={{ color: '#8b5050', fontSize: '0.8rem', fontFamily: 'Crimson Pro,serif' }}>
+          {incorrectCount > 0 && `${incorrectCount} hiba`}
+        </span>
+      </div>
+
+      {done && (
+        <div style={{ padding: '1rem', zIndex: 100 }}>
+          <div className="completion-banner">
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎉</div>
+            <h2 className="font-display" style={{ color: 'var(--gold)', fontSize: '1.4rem', letterSpacing: '0.1em', marginBottom: '0.3rem' }}>
+              Kész!
+            </h2>
+            <p className="font-body" style={{ color: 'var(--parchment)', marginBottom: '1rem', fontSize: '1rem' }}>
+              Minden pontot megtaláltál! Hibák: {incorrectCount}
+            </p>
+            <button className="btn-primary" onClick={onBack}>← Vissza a menübe</button>
+          </div>
+        </div>
+      )}
+
+      <div className="quiz-layout" style={{ display: 'flex', flex: 1, gap: 0, overflow: 'hidden' }}>
+        {/* Sidebar: name list */}
+        <div className="sidebar parchment" style={{ width: 230, minWidth: 180, padding: '1rem 0.7rem', overflowY: 'auto', borderRight: '2px solid var(--border)', flexShrink: 0 }}>
+          <div className="font-display" style={{ fontSize: '0.7rem', letterSpacing: '0.12em', color: 'var(--gold)', marginBottom: '0.7rem', textAlign: 'center' }}>
+            MEGTALÁLANDÓ NEVEK
+          </div>
+          {nameList.map(pt => {
+            const isCorrect = !remaining.has(pt.id);
+            return (
+              <div key={pt.id} className={`name-item ${isCorrect ? 'name-item-correct' : 'name-item-pending'}`}>
+                {isCorrect ? '✓ ' : '○ '}{pt.name}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Map */}
+        <div style={{ flex: 1, padding: '0.5rem', overflow: 'hidden' }}>
+          <MapCanvas
+            allPoints={allPoints}
+            quizPoints={quizPoints}
+            pointStates={allPointsWithState}
+            onPointClick={handleAnyClick}
+            showAllLabels={false}
+          />
+          <p className="font-body" style={{ color: 'var(--parchment-deep)', fontSize: '0.82rem', textAlign: 'center', marginTop: '0.4rem', opacity: 0.7 }}>
+            Kattints a megfelelő pontra a bal oldali nevek alapján
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MODE 2: LOCATION → NAME ──────────────────────────────────────────────────
+function QuizLocationToName({ config, onBack }) {
+  const quizPoints = useMemo(() => {
+    const filtered = RAW_DATA.points.filter(p => config.categories.includes(p.category));
+    return shuffle(filtered).slice(0, config.count);
+  }, []);
+
+  const [pointStates, setPointStates] = useState({});
+  const [activePopup, setActivePopup] = useState(null); // { id, inputVal, error }
+  const [incorrectCount, setIncorrectCount] = useState(0);
+  const [done, setDone] = useState(false);
+
+  const correctIds = useMemo(() => new Set(
+    Object.entries(pointStates).filter(([,v]) => v === 'correct').map(([k]) => Number(k))
+  ), [pointStates]);
+
+  const correctCount = correctIds.size;
+  const progress = correctCount / quizPoints.length;
+
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (activePopup && inputRef.current) {
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 80);
+    }
+  }, [activePopup?.id]);
+
+  const handlePointClick = useCallback((point) => {
+    if (correctIds.has(point.id)) return;
+    if (activePopup?.id === point.id) {
+      setActivePopup(null);
+      return;
+    }
+    setActivePopup({ id: point.id, inputVal: '', error: false });
+  }, [correctIds, activePopup]);
+
+  const handleSubmit = useCallback(() => {
+    if (!activePopup) return;
+    const point = quizPoints.find(p => p.id === activePopup.id);
+    if (!point) return;
+
+    const accepted = [normalizeStr(point.name)];
+    // Also accept without category suffixes like -tenger, -sziget etc.
+    const typed = normalizeStr(activePopup.inputVal);
+
+    if (accepted.includes(typed)) {
+      setPointStates(prev => {
+        const next = { ...prev, [point.id]: 'correct' };
+        const newCorrect = Object.values(next).filter(v => v === 'correct').length;
+        if (newCorrect === quizPoints.length) setTimeout(() => setDone(true), 600);
+        return next;
+      });
+      setActivePopup(null);
+    } else {
+      setIncorrectCount(c => c + 1);
+      setPointStates(prev => ({ ...prev, [point.id]: 'incorrect' }));
+      setActivePopup(prev => ({ ...prev, error: true }));
+      setTimeout(() => {
+        setPointStates(prev => {
+          if (prev[point.id] === 'incorrect') {
+            const next = { ...prev };
+            delete next[point.id];
+            return next;
+          }
+          return prev;
+        });
+        setActivePopup(prev => prev ? { ...prev, error: false } : null);
+      }, 700);
+    }
+  }, [activePopup, quizPoints]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter') handleSubmit();
+    if (e.key === 'Escape') setActivePopup(null);
+  }, [handleSubmit]);
+
+  const getPointState = useCallback((id) => {
+    if (correctIds.has(id)) return 'correct';
+    if (activePopup?.id === id) return 'selected';
+    return pointStates[id] || 'default';
+  }, [correctIds, activePopup, pointStates]);
+
+  const allPointStates = useMemo(() => {
+    const states = {};
+    quizPoints.forEach(p => { states[p.id] = getPointState(p.id); });
+    return states;
+  }, [quizPoints, getPointState]);
+
+  const popupPoint = activePopup ? quizPoints.find(p => p.id === activePopup.id) : null;
+
+  const popup = popupPoint ? {
+    x_pct: popupPoint.x_pct,
+    y_pct: popupPoint.y_pct,
+    content: (
+      <div>
+        <div className="font-display" style={{ fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: '0.4rem' }}>
+          MI EZ A PONT?
+        </div>
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <input
+            ref={inputRef}
+            className={activePopup.error ? 'input-error' : ''}
+            value={activePopup.inputVal}
+            onChange={e => setActivePopup(prev => ({ ...prev, inputVal: e.target.value, error: false }))}
+            onKeyDown={handleKeyDown}
+            placeholder="Írd be a nevet…"
+            autoComplete="off"
+          />
+          <button className="btn-primary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={handleSubmit}>→</button>
+        </div>
+        {activePopup.error && (
+          <div style={{ color: 'var(--crimson)', fontSize: '0.78rem', marginTop: '0.3rem', fontFamily: 'Crimson Pro,serif' }}>
+            Nem helyes. Próbáld újra!
+          </div>
+        )}
+        <div style={{ fontSize: '0.68rem', color: '#8b7048', marginTop: '0.3rem', fontFamily: 'Crimson Pro,serif' }}>
+          Kategória: {CATEGORY_LABELS[popupPoint.category] || popupPoint.category}
+        </div>
+      </div>
+    )
+  } : null;
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(160deg, #1a1208 0%, #0d1a24 100%)' }}>
+      {/* Top bar */}
+      <div style={{ padding: '0.7rem 1rem', background: 'rgba(26,18,8,0.8)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <button className="btn-secondary" onClick={onBack}>← Menü</button>
+        <span className="font-display" style={{ color: 'var(--gold)', fontSize: '0.85rem', letterSpacing: '0.1em' }}>
+          🏷️ HELYSZÍN → NÉV
+        </span>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <div className="progress-bar-bg">
+            <div className="progress-bar-fill" style={{ width: `${progress * 100}%` }} />
+          </div>
+        </div>
+        <span className="font-display" style={{ color: 'var(--parchment)', fontSize: '0.9rem' }}>
+          {correctCount}/{quizPoints.length}
+        </span>
+        {incorrectCount > 0 && (
+          <span style={{ color: '#8b5050', fontSize: '0.8rem', fontFamily: 'Crimson Pro,serif' }}>
+            {incorrectCount} hiba
+          </span>
+        )}
+      </div>
+
+      {done && (
+        <div style={{ padding: '1rem' }}>
+          <div className="completion-banner">
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎉</div>
+            <h2 className="font-display" style={{ color: 'var(--gold)', fontSize: '1.4rem', letterSpacing: '0.1em', marginBottom: '0.3rem' }}>
+              Kész!
+            </h2>
+            <p className="font-body" style={{ color: 'var(--parchment)', marginBottom: '1rem', fontSize: '1rem' }}>
+              Minden pontot megneveztél! Hibák: {incorrectCount}
+            </p>
+            <button className="btn-primary" onClick={onBack}>← Vissza a menübe</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ flex: 1, padding: '0.5rem' }}>
+        <MapCanvas
+          allPoints={[]}
+          quizPoints={quizPoints}
+          pointStates={allPointStates}
+          onPointClick={handlePointClick}
+          showAllLabels={false}
+          popup={popup}
+        />
+        <p className="font-body" style={{ color: 'var(--parchment-deep)', fontSize: '0.82rem', textAlign: 'center', marginTop: '0.4rem', opacity: 0.7 }}>
+          Kattints egy pontra és írd be a nevét!
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = useState('menu');   // menu | category | quiz
+  const [mode, setMode] = useState(null);
+  const [quizConfig, setQuizConfig] = useState(null);
+
+  const handleSelectMode = (m) => {
+    setMode(m);
+    setScreen('category');
+  };
+
+  const handleStart = (cfg) => {
+    setQuizConfig(cfg);
+    setScreen('quiz');
+  };
+
+  const handleBack = () => {
+    setScreen('menu');
+    setMode(null);
+    setQuizConfig(null);
+  };
+
+  if (screen === 'menu') return <MainMenu onSelectMode={handleSelectMode} />;
+  if (screen === 'category') return <CategorySelector mode={mode} onStart={handleStart} onBack={handleBack} />;
+  if (screen === 'quiz') {
+    if (mode === 'name-to-loc') return <QuizNameToLocation config={quizConfig} onBack={handleBack} />;
+    if (mode === 'loc-to-name') return <QuizLocationToName config={quizConfig} onBack={handleBack} />;
+  }
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
